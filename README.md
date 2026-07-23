@@ -17,6 +17,7 @@ Unlike a blind rewrite, SitePolish preserves the submitted site as an untouched 
 - responsive before/after browser comparison;
 - final output only after configured checks pass;
 - a profile-ready architecture for future opt-in enhancements.
+- an automated GitHub Actions quality gate.
 
 ## Quick start
 
@@ -30,6 +31,24 @@ npm run guide
 ```
 
 Enter the full path to the website folder you want to inspect. SitePolish copies it; it does not edit that source folder.
+
+## Fictional example
+
+The included **Lantern Grove Home Learning** case study is fictional and contains no
+real family, school, or private project material:
+
+```bash
+npm run example
+```
+
+The example has two deliberately separate artifacts:
+
+- `examples/lantern-grove-learning/input/` contains a small website with teachable
+  HTML, CSS, and JavaScript findings;
+- `examples/lantern-grove-learning/finished/` shows a reviewed, passing reference.
+
+See [the example walkthrough](examples/lantern-grove-learning/README.md) for the
+finding-to-fix decisions.
 
 ## The workflow
 
@@ -63,6 +82,10 @@ Generated runs are ignored by Git so a user’s site does not accidentally becom
 SitePolish can identify syntax, standards, consistency, and configured code-quality findings. It cannot decide whether branding is effective, text is truthful, or a visual suggestion matches the author’s intention. A finding is evidence to review—not permission to redesign.
 
 Read [docs/WORKFLOW.md](docs/WORKFLOW.md) for the professional workflow and extension model.
+
+The older Front-End Quality Pipeline’s reusable quality-gate responsibilities
+are now incorporated here. The optional framework discussion is preserved as a
+non-required [Bootstrap appendix](docs/BOOTSTRAP_APPENDIX.md).
 
 ## Portfolio summary
 

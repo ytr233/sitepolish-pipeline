@@ -1,0 +1,13 @@
+body {
+    color: #12zz33;
+    color: #243044;
+    font-family: Arial, sans-serif;
+}
+
+#service {
+    padding: 12px;
+}
+
+#details {
+    display: none;
+}

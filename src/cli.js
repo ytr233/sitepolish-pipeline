@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import path from "node:path";
 import { readOptions } from "./arguments.js";
 import { auditCandidate } from "./audit.js";
 import { applyProfile, applySupportedFixes } from "./fixes.js";
@@ -6,6 +7,7 @@ import { copyDirectory, emptyDirectory } from "./files.js";
 import { askYesNo, questionSession } from "./questions.js";
 import {
     createRun,
+    projectRoot,
     recordDecision,
     requireRun,
     updateManifest,
@@ -42,6 +44,9 @@ SitePolish Pipeline
 
   npm run finalize -- --run "my-site"
       Recheck and copy the approved candidate into a separate final folder.
+
+  npm run example
+      Import and audit the included fictional example website.
 `);
 }
 
@@ -170,6 +175,23 @@ async function guideCommand() {
     }
 }
 
+async function exampleCommand() {
+    const exampleName = `lantern-grove-example-${Date.now()}`;
+    const source = path.join(
+        projectRoot,
+        "examples",
+        "lantern-grove-learning",
+        "input",
+    );
+    const paths = await importCommand(source, exampleName);
+    auditCommand(paths.name);
+    console.log("\nCompare the imported example with its unchanged candidate:");
+    console.log(`npm run compare -- --run "${paths.name}"`);
+    console.log(
+        "\nThe reviewed reference is in examples/lantern-grove-learning/finished.",
+    );
+}
+
 try {
     if (command === "help") {
         printHelp();
@@ -188,6 +210,8 @@ try {
         );
     } else if (command === "finalize") {
         finalizeCommand(value("run"));
+    } else if (command === "example") {
+        await exampleCommand();
     } else {
         printHelp();
         process.exitCode = 1;

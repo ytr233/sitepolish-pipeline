@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Home | Lantern Grove Home Learning</title>
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <a class="skip-link" href="#main-content">Skip to main content</a>
+        <header class="site-header">
+            <p class="brand">Lantern Grove Home Learning</p>
+            <nav aria-label="Primary navigation">
+                <a aria-current="page" href="index.html">Home</a>
+                <a href="contact.html">Contact</a>
+            </nav>
+        </header>
+
+        <main id="main-content">
+            <section class="hero">
+                <p class="eyebrow">Homeschool planning</p>
+                <h1>Flexible learning for curious families</h1>
+                <p>
+                    Flexible planning support and hands-on ideas for
+                    homeschooling families.
+                </p>
+                <a class="button-link" href="contact.html">
+                    Explore learning plans
+                </a>
+            </section>
+
+            <section aria-labelledby="services-heading">
+                <h2 id="services-heading">Focused services</h2>
+                <ul class="service-list">
+                    <li>Weekly learning plans</li>
+                    <li>Hands-on activity ideas</li>
+                    <li>Flexible family schedule planning</li>
+                </ul>
+                <button
+                    id="details-button"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="details"
+                >
+                    Show learning support details
+                </button>
+                <p id="details" class="details" hidden>
+                    Every learning plan begins with a focused discovery
+                    conversation.
+                </p>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; <span id="year"></span> Lantern Grove Home Learning</p>
+        </footer>
+        <script src="script.js"></script>
+    </body>
+</html>
