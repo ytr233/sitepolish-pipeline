@@ -35,6 +35,19 @@ function safeSitePath(root, requestedPath) {
     return result.startsWith(path.resolve(root)) ? result : null;
 }
 
+function newestModifiedTime(directory) {
+    let newest = 0;
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        const filename = path.join(directory, entry.name);
+        if (entry.isDirectory()) {
+            newest = Math.max(newest, newestModifiedTime(filename));
+        } else {
+            newest = Math.max(newest, fs.statSync(filename).mtimeMs);
+        }
+    }
+    return newest;
+}
+
 function dashboard(runName) {
     return `<!doctype html>
 <html lang="en">
@@ -62,8 +75,26 @@ function dashboard(runName) {
     </header>
     <main>
         <section><h2>Before — untouched baseline</h2><iframe title="Baseline website" src="/before/"></iframe></section>
-        <section><h2>After — candidate preview</h2><iframe title="Candidate website" src="/after/"></iframe></section>
+        <section><h2>After — live candidate preview</h2><iframe id="candidate-preview" title="Candidate website" src="/after/"></iframe></section>
     </main>
+    <script>
+        const candidate = document.getElementById("candidate-preview");
+        let lastVersion = null;
+        async function refreshWhenChanged() {
+            try {
+                const response = await fetch("/__sitepolish_state", { cache: "no-store" });
+                const state = await response.json();
+                if (lastVersion !== null && state.version !== lastVersion) {
+                    candidate.src = "/after/?version=" + state.version;
+                }
+                lastVersion = state.version;
+            } catch {
+                // Retry on the next poll.
+            }
+        }
+        refreshWhenChanged();
+        window.setInterval(refreshWhenChanged, 1000);
+    </script>
 </body>
 </html>`;
 }
@@ -76,6 +107,18 @@ export function startComparisonServer(paths, port) {
                 "Content-Type": "text/html; charset=utf-8",
             });
             response.end(dashboard(paths.name));
+            return;
+        }
+        if (url.pathname === "/__sitepolish_state") {
+            response.writeHead(200, {
+                "Content-Type": "application/json; charset=utf-8",
+                "Cache-Control": "no-store",
+            });
+            response.end(
+                JSON.stringify({
+                    version: newestModifiedTime(paths.candidate),
+                }),
+            );
             return;
         }
 

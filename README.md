@@ -1,6 +1,6 @@
 # SitePolish Pipeline
 
-**Drop in a website. Understand every finding. Approve the polish. Compare the result.**
+**Drop in a website and wireframe. Understand every finding. Approve the polish. Export the result.**
 
 SitePolish is a reusable **front-end validation, remediation, and progressive-enhancement pipeline** for plain HTML, CSS, and JavaScript websites.
 
@@ -8,14 +8,17 @@ Unlike a blind rewrite, SitePolish preserves the submitted site as an untouched 
 
 ## What it provides
 
-- untouched baseline and separate editable candidate;
+- untouched website baseline, preserved wireframe, and separate candidate;
 - HTML Validate, Stylelint, ESLint, and Prettier integration;
 - human-readable Markdown report and machine-readable JSON;
 - file, line, rule identifier, definition, fixability, and official reference for each finding;
-- explicit approval before supported CSS, JavaScript, or formatting changes;
+- detected beginner/intermediate/advanced complexity ceiling;
+- visual audit dashboard and plain-English reports;
+- `y`, `n`, and `d` review before code or styling changes;
+- chronological review-session history;
 - decision journal;
 - responsive before/after browser comparison;
-- final output only after configured checks pass;
+- final folder and ZIP only after configured checks and manual review;
 - a profile-ready architecture for future opt-in enhancements.
 - an automated GitHub Actions quality gate.
 
@@ -30,7 +33,8 @@ npm install
 npm run guide
 ```
 
-Enter the full path to the website folder you want to inspect. SitePolish copies it; it does not edit that source folder.
+Enter the full path to the website folder and a wireframe image or PDF.
+SitePolish copies both; it does not edit either source.
 
 ## Fictional example
 
@@ -71,7 +75,9 @@ runs/my-site/
 ├── baseline/   untouched imported website
 ├── candidate/  approved changes under review
 ├── final/      verified output
+├── reference/  preserved wireframe
 ├── reports/    findings and decision journal
+├── my-site-final.zip
 └── run.json    run metadata
 ```
 
@@ -79,9 +85,20 @@ Generated runs are ignored by Git so a user’s site does not accidentally becom
 
 ## Scope and honesty
 
-SitePolish can identify syntax, standards, consistency, and configured code-quality findings. It cannot decide whether branding is effective, text is truthful, or a visual suggestion matches the author’s intention. A finding is evidence to review—not permission to redesign.
+SitePolish can identify syntax, standards, consistency, and configured
+code-quality findings. It stores and displays a wireframe and can apply an
+explicit reviewed styling profile. A purely local validator cannot visually
+interpret every arbitrary image; a new wireframe requires a human- or
+AI-authored profile before the pipeline can apply it. A finding or wireframe is
+evidence to review—not permission to redesign.
 
 Read [docs/WORKFLOW.md](docs/WORKFLOW.md) for the professional workflow and extension model.
+
+Use [the website + wireframe walkthrough](docs/WIREFRAME_WALKTHROUGH.md) for
+the concise terminal sequence.
+
+Use [the independent audit checklist](docs/PIPELINE_AUDIT_CHECKLIST.md) to test
+the pipeline instead of trusting its author.
 
 The older Front-End Quality Pipeline’s reusable quality-gate responsibilities
 are now incorporated here. The optional framework discussion is preserved as a

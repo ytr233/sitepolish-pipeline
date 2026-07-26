@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { copyDirectory, emptyDirectory, safeRunName } from "./files.js";
+import { analyzeScope, scopeMarkdown } from "./scope.js";
 
 export const projectRoot = path.resolve(import.meta.dirname, "..");
 
@@ -18,11 +19,18 @@ export function runPaths(name) {
         manifest: path.join(root, "run.json"),
         findings: path.join(root, "reports", "findings.json"),
         auditReport: path.join(root, "reports", "AUDIT_REPORT.md"),
+        auditDashboard: path.join(root, "reports", "AUDIT_DASHBOARD.html"),
+        styleReport: path.join(root, "reports", "STYLE_REVIEW.md"),
         decisions: path.join(root, "reports", "DECISIONS.md"),
+        scopeReport: path.join(root, "reports", "SCOPE_REPORT.md"),
+        reference: path.join(root, "reference"),
+        reviewSessions: path.join(root, "reports", "review-sessions"),
+        reviewIndex: path.join(root, "reports", "REVIEW_SESSION_INDEX.md"),
+        finalArchive: path.join(root, `${safeName}-final.zip`),
     };
 }
 
-export function createRun(sourcePath, name) {
+export function createRun(sourcePath, name, wireframePath) {
     if (!sourcePath) {
         throw new Error(
             "Provide a source folder with --source or use npm run guide.",
@@ -32,6 +40,17 @@ export function createRun(sourcePath, name) {
     const source = path.resolve(sourcePath);
     if (!fs.existsSync(source) || !fs.statSync(source).isDirectory()) {
         throw new Error(`Source folder not found: ${source}`);
+    }
+
+    if (!wireframePath) {
+        throw new Error(
+            "Provide a wireframe image or PDF with --wireframe or use npm run guide.",
+        );
+    }
+
+    const wireframe = path.resolve(wireframePath);
+    if (!fs.existsSync(wireframe) || !fs.statSync(wireframe).isFile()) {
+        throw new Error(`Wireframe file not found: ${wireframe}`);
     }
 
     const paths = runPaths(name);
@@ -49,17 +68,28 @@ export function createRun(sourcePath, name) {
 
     try {
         fs.mkdirSync(paths.reports, { recursive: true });
+        fs.mkdirSync(paths.reference, { recursive: true });
         copyDirectory(source, paths.baseline);
         copyDirectory(source, paths.candidate);
+        fs.copyFileSync(
+            wireframe,
+            path.join(paths.reference, path.basename(wireframe)),
+        );
         emptyDirectory(paths.final);
     } catch (error) {
         fs.rmSync(paths.root, { recursive: true, force: true });
         throw error;
     }
 
+    const scope = analyzeScope(paths.baseline);
+    fs.writeFileSync(paths.scopeReport, scopeMarkdown(scope));
+
     const manifest = {
         name: paths.name,
         source,
+        wireframe,
+        storedWireframe: path.join("reference", path.basename(wireframe)),
+        inputLevel: scope.level,
         createdAt: new Date().toISOString(),
         baselineLocked: true,
         profile: "validation-only",

@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import path from "node:path";
+import fs from "node:fs";
+import { spawnSync } from "node:child_process";
 import { readOptions } from "./arguments.js";
 import { auditCandidate } from "./audit.js";
 import { applyProfile, applySupportedFixes } from "./fixes.js";
 import { copyDirectory, emptyDirectory } from "./files.js";
-import { askYesNo, questionSession } from "./questions.js";
+import { askReview, questionSession } from "./questions.js";
 import {
     createRun,
     projectRoot,
@@ -30,8 +32,8 @@ SitePolish Pipeline
   npm run guide
       Beginner-friendly guided workflow.
 
-  npm run import -- --source "/path/to/site" --name "my-site"
-      Preserve an untouched baseline and make a separate candidate.
+  npm run import -- --source "/path/to/site" --wireframe "/path/to/wireframe.png" --name "my-site"
+      Preserve the website and wireframe, then make a separate candidate.
 
   npm run audit -- --run "my-site"
       Identify HTML, CSS, and JavaScript findings with official references.
@@ -44,17 +46,50 @@ SitePolish Pipeline
 
   npm run finalize -- --run "my-site"
       Recheck and copy the approved candidate into a separate final folder.
-
-  npm run example
-      Import and audit the included fictional example website.
 `);
 }
 
-async function importCommand(source, name) {
-    const paths = createRun(source, name);
+function sessionId() {
+    return new Date().toISOString().replace(/[-:TZ.]/g, "");
+}
+
+function showText(text) {
+    console.log(`\n${text}\n`);
+}
+
+function showProfileDiff(paths, profileName) {
+    const profile = path.join(projectRoot, "profiles", profileName, "overlay");
+    const result = spawnSync(
+        "git",
+        ["--no-pager", "diff", "--no-index", "--", paths.candidate, profile],
+        { encoding: "utf8", maxBuffer: 20 * 1024 * 1024 },
+    );
+    const output =
+        result.stdout || result.stderr || "No text difference available.";
+    const diffPath = path.join(paths.reports, "STYLE_PROFILE_DIFF.patch");
+    fs.writeFileSync(diffPath, output);
+    const changedFiles = output
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith("diff --git "))
+        .map((line) => line.split(" b/")[1])
+        .filter(Boolean);
+    console.log("\nSTYLING PROPOSAL DETAILS");
+    console.log(`Profile: ${profileName}`);
+    console.log(`Files represented in full diff: ${changedFiles.length}`);
+    console.log(`Readable wireframe plan: ${paths.styleReport}`);
+    console.log(`Complete patch: ${diffPath}`);
+    console.log(
+        "The overlay copies approved files into the candidate; it does not delete baseline evidence.",
+    );
+}
+
+async function importCommand(source, name, wireframe) {
+    const paths = createRun(source, name, wireframe);
     console.log(`Imported: ${source}`);
+    console.log(`Wireframe stored: ${paths.reference}`);
     console.log(`Untouched baseline: ${paths.baseline}`);
     console.log(`Editable candidate: ${paths.candidate}`);
+    console.log(`Scope report: ${paths.scopeReport}`);
     console.log(`\nNext: npm run audit -- --run "${paths.name}"`);
     return paths;
 }
@@ -64,6 +99,8 @@ function auditCommand(name) {
     const findings = auditCandidate(paths);
     console.log(`Audit complete: ${findings.length} finding(s).`);
     console.log(`Read: ${paths.auditReport}`);
+    console.log(`Open dashboard: ${paths.auditDashboard}`);
+    console.log(`Read styling review: ${paths.styleReport}`);
     return { paths, findings };
 }
 
@@ -74,17 +111,44 @@ async function reviewCommand(name, requestedProfile) {
         console.log(
             `\nReviewing candidate for "${paths.name}". The baseline will not be changed.\n`,
         );
-        const css = await askYesNo(
+        const css = await askReview(
             session,
             "Apply fixes Stylelint explicitly supports?",
+            () =>
+                showText(
+                    "Stylelint will apply only fixes marked safe by its configured CSS rules. It will not interpret the wireframe.",
+                ),
+            (alternative) =>
+                recordDecision(
+                    paths,
+                    `Alternative requested instead of Stylelint fixes: ${alternative}`,
+                ),
         );
-        const js = await askYesNo(
+        const js = await askReview(
             session,
             "Apply fixes ESLint explicitly supports?",
+            () =>
+                showText(
+                    "ESLint will apply supported problem and suggestion fixes to existing JavaScript. It will not add a framework.",
+                ),
+            (alternative) =>
+                recordDecision(
+                    paths,
+                    `Alternative requested instead of ESLint fixes: ${alternative}`,
+                ),
         );
-        const format = await askYesNo(
+        const format = await askReview(
             session,
             "Run Prettier on the candidate for consistent spacing and indentation?",
+            () =>
+                showText(
+                    "Prettier changes source indentation, wrapping, and spacing. It does not redesign the rendered website.",
+                ),
+            (alternative) =>
+                recordDecision(
+                    paths,
+                    `Alternative requested instead of Prettier formatting: ${alternative}`,
+                ),
         );
         const selections = [
             ...(css ? ["css"] : []),
@@ -95,9 +159,15 @@ async function reviewCommand(name, requestedProfile) {
 
         const profile = requestedProfile ?? "validation-only";
         if (profile !== "validation-only") {
-            const approveProfile = await askYesNo(
+            const approveProfile = await askReview(
                 session,
                 `Apply the optional "${profile}" enhancement profile?`,
+                () => showProfileDiff(paths, profile),
+                (alternative) =>
+                    recordDecision(
+                        paths,
+                        `Alternative requested instead of ${profile}: ${alternative}`,
+                    ),
             );
             if (approveProfile) {
                 applied.push(...applyProfile(paths, profile));
@@ -116,13 +186,25 @@ async function reviewCommand(name, requestedProfile) {
         }
         console.log(`\nApplied ${applied.length} selected change group(s).`);
         console.log(`Decision journal: ${paths.decisions}`);
+        const id = sessionId();
+        const sessionDirectory = path.join(paths.reviewSessions, id);
+        fs.mkdirSync(sessionDirectory, { recursive: true });
+        fs.copyFileSync(
+            paths.decisions,
+            path.join(sessionDirectory, "DECISIONS.md"),
+        );
+        fs.appendFileSync(
+            paths.reviewIndex,
+            `\n- ${id}: [decisions](review-sessions/${id}/DECISIONS.md)\n`,
+        );
+        console.log(`Permanent review session: ${sessionDirectory}`);
         console.log(`Compare: npm run compare -- --run "${paths.name}"`);
     } finally {
         session.close();
     }
 }
 
-function finalizeCommand(name) {
+async function finalizeCommand(name) {
     const paths = requireRun(name);
     const findings = auditCandidate(paths);
     if (findings.length) {
@@ -134,8 +216,45 @@ function finalizeCommand(name) {
         return;
     }
 
+    const session = questionSession();
+    try {
+        const approved = await askReview(
+            session,
+            "Did you manually compare the baseline and candidate and approve the visible result?",
+            () =>
+                showText(
+                    `Run npm run compare -- --run "${paths.name}", inspect every page and interaction, then return here. Finalization never replaces manual visual review.`,
+                ),
+            (alternative) =>
+                recordDecision(
+                    paths,
+                    `Final manual-review alternative or concern: ${alternative}`,
+                ),
+        );
+        if (!approved) {
+            console.log("Finalization paused. The candidate was preserved.");
+            return;
+        }
+    } finally {
+        session.close();
+    }
+
     emptyDirectory(paths.final);
     copyDirectory(paths.candidate, paths.final);
+    fs.rmSync(paths.finalArchive, { force: true });
+    const archive = spawnSync(
+        "zip",
+        ["-r", "-q", paths.finalArchive, path.basename(paths.final)],
+        {
+            cwd: paths.root,
+            encoding: "utf8",
+        },
+    );
+    if (archive.status !== 0) {
+        throw new Error(
+            `Final folder was created, but ZIP packaging failed: ${archive.stderr}`,
+        );
+    }
     recordDecision(
         paths,
         "Accepted candidate and created final output after all configured checks passed.",
@@ -145,6 +264,7 @@ function finalizeCommand(name) {
         finalizedAt: new Date().toISOString(),
     });
     console.log(`Final project created: ${paths.final}`);
+    console.log(`Downloadable ZIP created: ${paths.finalArchive}`);
 }
 
 async function guideCommand() {
@@ -157,10 +277,19 @@ async function guideCommand() {
         const source = (
             await session.question("Full path to the website folder: ")
         ).trim();
+        const wireframe = (
+            await session.question("Full path to the wireframe image or PDF: ")
+        ).trim();
         const name = (
             await session.question("Short name for this run: ")
         ).trim();
-        const paths = await importCommand(source, name);
+        const profile =
+            (
+                await session.question(
+                    "Styling profile (validation-only or lantern-grove-wireframe): ",
+                )
+            ).trim() || "validation-only";
+        const paths = await importCommand(source, name, wireframe);
         console.log(
             "\nFirst preview the real imported project before changing it:",
         );
@@ -169,26 +298,33 @@ async function guideCommand() {
             "\nAfter viewing it, stop the preview with Control-C and run:",
         );
         console.log(`npm run audit -- --run "${paths.name}"`);
-        console.log(`npm run review -- --run "${paths.name}"`);
+        console.log(`open "runs/${paths.name}/reports/AUDIT_DASHBOARD.html"`);
+        console.log(
+            `npm run review -- --run "${paths.name}" --profile "${profile}"`,
+        );
     } finally {
         session.close();
     }
 }
 
 async function exampleCommand() {
-    const exampleName = `lantern-grove-example-${Date.now()}`;
+    const demoName = `lantern-grove-example-${Date.now()}`;
     const source = path.join(
         projectRoot,
         "examples",
         "lantern-grove-learning",
         "input",
     );
-    const paths = await importCommand(source, exampleName);
+    const wireframe = path.join(
+        projectRoot,
+        "examples",
+        "lantern-grove-learning",
+        "wireframe.svg",
+    );
+    const paths = await importCommand(source, demoName, wireframe);
     auditCommand(paths.name);
-    console.log("\nCompare the imported example with its unchanged candidate:");
-    console.log(`npm run compare -- --run "${paths.name}"`);
     console.log(
-        "\nThe reviewed reference is in examples/lantern-grove-learning/finished.",
+        `\nTo review the fictional styling profile:\nnpm run review -- --run "${paths.name}" --profile lantern-grove-wireframe`,
     );
 }
 
@@ -198,7 +334,7 @@ try {
     } else if (command === "guide") {
         await guideCommand();
     } else if (command === "import") {
-        await importCommand(value("source"), value("name"));
+        await importCommand(value("source"), value("name"), value("wireframe"));
     } else if (command === "audit") {
         auditCommand(value("run"));
     } else if (command === "review") {
@@ -209,7 +345,7 @@ try {
             Number(value("port", "8000")),
         );
     } else if (command === "finalize") {
-        finalizeCommand(value("run"));
+        await finalizeCommand(value("run"));
     } else if (command === "example") {
         await exampleCommand();
     } else {

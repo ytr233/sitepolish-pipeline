@@ -4,6 +4,7 @@ import { findFiles, copyDirectory } from "./files.js";
 import { profiles } from "../config/profiles.js";
 import { projectRoot, recordDecision, updateManifest } from "./run.js";
 import { runTool } from "./tools.js";
+import { analyzeScope, levelAllowed } from "./scope.js";
 
 export function applySupportedFixes(paths, selections) {
     const changed = [];
@@ -50,6 +51,14 @@ export function applyProfile(paths, profileName) {
     const profile = profiles[profileName];
     if (!profile) {
         throw new Error(`Unknown profile: ${profileName}`);
+    }
+
+    const inputScope = analyzeScope(paths.baseline);
+    const proposalLevel = profile.level ?? "beginner";
+    if (!levelAllowed(inputScope.level, proposalLevel)) {
+        throw new Error(
+            `The ${profile.label} proposal is above the imported ${inputScope.level} scope ceiling.`,
+        );
     }
 
     if (!profile.overlay) {
