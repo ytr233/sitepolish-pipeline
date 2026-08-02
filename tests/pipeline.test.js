@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { analyzeScope, levelAllowed } from "../src/scope.js";
 import { createRun } from "../src/run.js";
+import { prepareVeilidStage } from "../src/veilid.js";
 
 function fixture() {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "sitepolish-test-"));
@@ -69,6 +70,39 @@ test("missing wireframe is rejected", () => {
             /wireframe/i,
         );
     } finally {
+        fs.rmSync(data.root, { recursive: true, force: true });
+    }
+});
+
+test("Veilid remains an isolated post-finalization stage", () => {
+    const data = fixture();
+    let paths;
+    try {
+        paths = createRun(
+            data.site,
+            `veilid-test-${Date.now()}`,
+            data.wireframe,
+        );
+        assert.throws(() => prepareVeilidStage(paths), /after finalization/i);
+        const manifest = JSON.parse(fs.readFileSync(paths.manifest, "utf8"));
+        manifest.status = "finalized";
+        fs.writeFileSync(
+            paths.manifest,
+            `${JSON.stringify(manifest, null, 4)}\n`,
+        );
+        fs.mkdirSync(paths.final, { recursive: true });
+        fs.writeFileSync(path.join(paths.final, "index.html"), "unchanged");
+
+        const output = prepareVeilidStage(paths);
+        assert.ok(fs.existsSync(path.join(output, "veilid.json")));
+        assert.equal(
+            fs.readFileSync(path.join(paths.final, "index.html"), "utf8"),
+            "unchanged",
+        );
+    } finally {
+        if (paths) {
+            fs.rmSync(paths.root, { recursive: true, force: true });
+        }
         fs.rmSync(data.root, { recursive: true, force: true });
     }
 });

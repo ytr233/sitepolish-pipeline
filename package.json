@@ -11,6 +11,7 @@
         "review": "node src/cli.js review",
         "compare": "node src/cli.js compare",
         "finalize": "node src/cli.js finalize",
+        "veilid": "node src/cli.js veilid",
         "example": "node src/cli.js example",
         "test": "node --test",
         "check:engine": "eslint src config tests eslint.config.js",

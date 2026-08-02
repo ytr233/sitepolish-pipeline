@@ -27,6 +27,7 @@ export function runPaths(name) {
         reviewSessions: path.join(root, "reports", "review-sessions"),
         reviewIndex: path.join(root, "reports", "REVIEW_SESSION_INDEX.md"),
         finalArchive: path.join(root, `${safeName}-final.zip`),
+        veilid: path.join(root, "veilid"),
     };
 }
 

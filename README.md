@@ -19,6 +19,7 @@ Unlike a blind rewrite, SitePolish preserves the submitted site as an untouched 
 - decision journal;
 - responsive before/after browser comparison;
 - final folder and ZIP only after configured checks and manual review;
+- an isolated, opt-in post-finalization boundary for designing private peer-to-peer features with [Veilid](https://veilid.com/), the open-source framework launched by members of Cult of the Dead Cow;
 - a profile-ready architecture for future opt-in enhancements.
 - an automated GitHub Actions quality gate.
 
@@ -64,7 +65,23 @@ npm run audit -- --run "my-site"
 npm run review -- --run "my-site"
 npm run compare -- --run "my-site"
 npm run finalize -- --run "my-site"
+npm run veilid -- --run "my-site"
 ```
+
+## Veilid, kept separate on purpose
+
+After a site is approved and finalized, `npm run veilid -- --run "my-site"`
+creates a separate `runs/my-site/veilid/` planning area. It never injects code into
+the polished website. Veilid is a peer-to-peer application framework—not a magic
+security badge—so SitePolish records the integration boundary and requires a real
+private feature, threat model, data model, and platform decision before implementation.
+
+This extension draws on the privacy engineering work of the
+[Veilid Foundation](https://veilid.com/) and members of
+[Cult of the Dead Cow](https://cultdeadcow.com/). It is an independent integration;
+no endorsement or affiliation is implied. See the
+[official Veilid developer book](https://veilid.gitlab.io/developer-book/) for the
+framework API and supported platforms.
 
 Open `http://localhost:8000` while the comparison command is running. Press `Control-C` to stop the preview server.
 

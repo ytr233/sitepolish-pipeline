@@ -15,6 +15,7 @@ import {
     updateManifest,
 } from "./run.js";
 import { startComparisonServer } from "./server.js";
+import { prepareVeilidStage } from "./veilid.js";
 
 const [command = "help", ...rawOptions] = process.argv.slice(2);
 const options = readOptions(rawOptions);
@@ -46,6 +47,9 @@ SitePolish Pipeline
 
   npm run finalize -- --run "my-site"
       Recheck and copy the approved candidate into a separate final folder.
+
+  npm run veilid -- --run "my-site"
+      Prepare an isolated post-finalization Veilid integration boundary.
 `);
 }
 
@@ -267,6 +271,17 @@ async function finalizeCommand(name) {
     console.log(`Downloadable ZIP created: ${paths.finalArchive}`);
 }
 
+function veilidCommand(name) {
+    const paths = requireRun(name);
+    const output = prepareVeilidStage(paths);
+    recordDecision(
+        paths,
+        "Prepared the isolated post-finalization Veilid integration boundary; the final website was not modified.",
+    );
+    console.log(`Veilid stage prepared separately: ${output}`);
+    console.log(`Read: ${path.join(output, "README.md")}`);
+}
+
 async function guideCommand() {
     const session = questionSession();
     try {
@@ -346,6 +361,8 @@ try {
         );
     } else if (command === "finalize") {
         await finalizeCommand(value("run"));
+    } else if (command === "veilid") {
+        veilidCommand(value("run"));
     } else if (command === "example") {
         await exampleCommand();
     } else {
